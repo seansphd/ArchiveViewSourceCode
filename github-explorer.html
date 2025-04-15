@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Repository Explorer</title>
+    <!-- Use more stable CDN links -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.20/babel.min.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f6f8fa;
+            color: #24292e;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background-color: #24292e;
+            color: white;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+        }
+
+        .header h1 i {
+            margin-right: 10px;
+        }
+
+        .search-container {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #e1e4e8;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #0366d6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        button:hover {
+            background-color: #0353b4;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            margin: 20px 0;
+            padding: 10px;
+            background-color: rgba(231, 76, 60, 0.1);
+            border-radius: 4px;
+        }
+
+        .repo-list {
+            margin-top: 20px;
+        }
+
+        .repo-card {
+            background-color: white;
+            border: 1px solid #e1e4e8;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .repo-header {
+            padding: 15px;
+            border-bottom: 1px solid #e1e4e8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .repo-name {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .repo-description {
+            color: #586069;
+            margin: 10px 0;
+        }
+
+        .repo-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 14px;
+            color: #586069;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .branch-list, .commit-list {
+            padding: 15px;
+        }
+
+        .branch, .commit {
+            padding: 10px;
+            border-bottom: 1px solid #e1e4e8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .branch:last-child, .commit:last-child {
+            border-bottom: none;
+        }
+
+        .branch:hover, .commit:hover {
+            background-color: #f1f1f1;
+        }
+
+        .branch-name, .commit-id {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .commit-date {
+            color: #586069;
+            font-size: 14px;
+        }
+
+        .commit-message {
+            flex: 1;
+            margin: 0 20px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .accordion-button {
+            background-color: transparent;
+            color: #24292e;
+            padding: 10px 15px;
+            width: 100%;
+            text-align: left;
+            border: none;
+            border-bottom: 1px solid #e1e4e8;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left: 4px solid #0366d6;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 10px;
+        }
+
+        .page-button {
+            padding: 5px 10px;
+            background-color: white;
+            border: 1px solid #e1e4e8;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .page-button.active {
+            background-color: #0366d6;
+            color: white;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 7px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-primary {
+            background-color: #0366d6;
+            color: white;
+        }
+
+        .badge-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .badge-success {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .debug-info {
+            background-color: #f8f9fa;
+            border: 1px solid #e1e4e8;
+            padding: 10px;
+            margin-top: 20px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 150px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <!-- Fallback content in case React fails to load -->
+        <div class="container">
+            <h1>Loading GitHub Repository Explorer...</h1>
+            <p>If this message persists, there might be an issue with JavaScript loading.</p>
+        </div>
+    </div>
+
+    <!-- Debug element to catch early errors -->
+    <div id="debug-info" class="container" style="display:none">
+        <h3>Debug Information</h3>
+        <div id="debug-content" class="debug-info"></div>
+    </div>
+
+    <script type="text/babel">
+        // Debug utility
+        const debug = {
+            log: function(message) {
+                console.log(message);
+                const debugEl = document.getElementById('debug-content');
+                if (debugEl) {
+                    debugEl.textContent += (typeof message === 'object' ? 
+                        JSON.stringify(message, null, 2) : message) + '\n';
+                    document.getElementById('debug-info').style.display = 'block';
+                }
+            },
+            error: function(message, error) {
+                console.error(message, error);
+                const debugEl = document.getElementById('debug-content');
+                if (debugEl) {
+                    debugEl.textContent += `ERROR: ${message}\n${error?.message || ''}\n${error?.stack || ''}\n`;
+                    document.getElementById('debug-info').style.display = 'block';
+                }
+            }
+        };
+
+        try {
+            debug.log("Script started");
+            const { useState, useEffect } = React;
+
+            // Main App Component
+            function App() {
+                const [username, setUsername] = useState('');
+                const [inputUsername, setInputUsername] = useState('');
+                const [repos, setRepos] = useState([]);
+                const [loading, setLoading] = useState(false);
+                const [error, setError] = useState(null);
+                const [expandedRepos, setExpandedRepos] = useState({});
+                const [page, setPage] = useState(1);
+                const perPage = 10;
+
+                // Fetch repositories for a user
+                const fetchRepos = async (username) => {
+                    setLoading(true);
+                    setError(null);
+                    setRepos([]);
+                    setExpandedRepos({});
+                    
+                    try {
+                        debug.log(`Fetching repos for ${username}`);
+                        const response = await fetch(`https://api.github.com/users/${username}/repos?per_page=100`);
+                        
+                        if (!response.ok) {
+                            throw new Error(`GitHub API Error: ${response.status}`);
+                        }
+                        
+                        const data = await response.json();
+                        debug.log(`Found ${data.length} repos`);
+                        
+                        // Sort repos by updated date
+                        const sortedRepos = data.sort((a, b) => 
+                            new Date(b.updated_at) - new Date(a.updated_at)
+                        );
+                        
+                        setRepos(sortedRepos);
+                        setUsername(username);
+                        setPage(1);
+                    } catch (err) {
+                        debug.error("Fetch error", err);
+                        setError(`Failed to fetch repositories: ${err.message}`);
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+
+                // Handle form submission
+                const handleSubmit = (e) => {
+                    e.preventDefault();
+                    if (inputUsername.trim()) {
+                        fetchRepos(inputUsername.trim());
+                    }
+                };
+
+                // Toggle expanded repo state
+                const toggleRepoExpanded = (repoId) => {
+                    setExpandedRepos(prev => ({
+                        ...prev,
+                        [repoId]: !prev[repoId]
+                    }));
+                };
+
+                // Calculate pagination
+                const totalPages = Math.ceil(repos.length / perPage);
+                const paginatedRepos = repos.slice((page - 1) * perPage, page * perPage);
+
+                return (
+                    <>
+                        <div className="header">
+                            <h1><i className="fa-brands fa-github"></i> GitHub Repository Explorer</h1>
+                        </div>
+                        
+                        <div className="container">
+                            <form onSubmit={handleSubmit} className="search-container">
+                                <input
+                                    type="text"
+                                    value={inputUsername}
+                                    onChange={(e) => setInputUsername(e.target.value)}
+                                    placeholder="Enter GitHub username"
+                                    aria-label="GitHub username"
+                                />
+                                <button type="submit" disabled={loading || !inputUsername.trim()}>
+                                    {loading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-search"></i>}
+                                    Search
+                                </button>
+                            </form>
+                            
+                            {error && <div className="error-message">{error}</div>}
+                            
+                            {loading && (
+                                <div className="loading">
+                                    <div className="spinner"></div>
+                                </div>
+                            )}
+                            
+                            {!loading && repos.length > 0 && (
+                                <>
+                                    <div className="repo-list">
+                                        {paginatedRepos.map(repo => (
+                                            <RepoCard 
+                                                key={repo.id} 
+                                                repo={repo} 
+                                                isExpanded={!!expandedRepos[repo.id]} 
+                                                toggleExpanded={() => toggleRepoExpanded(repo.id)} 
+                                            />
+                                        ))}
+                                    </div>
+                                    
+                                    {totalPages > 1 && (
+                                        <div className="pagination">
+                                            <button 
+                                                className="page-button" 
+                                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                                disabled={page === 1}
+                                            >
+                                                <i className="fa-solid fa-chevron-left"></i>
+                                            </button>
+                                            
+                                            {[...Array(totalPages)].map((_, i) => (
+                                                <button
+                                                    key={i}
+                                                    className={`page-button ${page === i + 1 ? 'active' : ''}`}
+                                                    onClick={() => setPage(i + 1)}
+                                                >
+                                                    {i + 1}
+                                                </button>
+                                            ))}
+                                            
+                                            <button 
+                                                className="page-button" 
+                                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                                disabled={page === totalPages}
+                                            >
+                                                <i className="fa-solid fa-chevron-right"></i>
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                            
+                            {!loading && username && repos.length === 0 && (
+                                <div>No repositories found for user {username}</div>
+                            )}
+                        </div>
+                    </>
+                );
+            }
+
+            // Repository Card Component
+            function RepoCard({ repo, isExpanded, toggleExpanded }) {
+                const [branches, setBranches] = useState([]);
+                const [commits, setCommits] = useState([]);
+                const [activeBranch, setActiveBranch] = useState(null);
+                const [loadingBranches, setLoadingBranches] = useState(false);
+                const [loadingCommits, setLoadingCommits] = useState(false);
+                const [error, setError] = useState(null);
+                const [showBranches, setShowBranches] = useState(false);
+                const [showCommits, setShowCommits] = useState(false);
+                
+                // Fetch branches when repo is expanded
+                useEffect(() => {
+                    if (isExpanded && branches.length === 0) {
+                        fetchBranches();
+                    }
+                }, [isExpanded]);
+                
+                // Fetch branches for a repository
+                const fetchBranches = async () => {
+                    setLoadingBranches(true);
+                    setError(null);
+                    
+                    try {
+                        const branchesUrl = repo.branches_url.replace('{/branch}', '');
+                        debug.log(`Fetching branches from ${branchesUrl}`);
+                        const response = await fetch(branchesUrl);
+                        
+                        if (!response.ok) {
+                            throw new Error(`GitHub API Error: ${response.status}`);
+                        }
+                        
+                        const data = await response.json();
+                        setBranches(data);
+                        
+                        // Set default branch as active
+                        const defaultBranch = data.find(branch => branch.name === repo.default_branch) || data[0];
+                        if (defaultBranch) {
+                            setActiveBranch(defaultBranch.name);
+                            fetchCommits(defaultBranch.name);
+                        }
+                        
+                        setShowBranches(true);
+                    } catch (err) {
+                        debug.error("Fetch branches error", err);
+                        setError(`Failed to fetch branches: ${err.message}`);
+                    } finally {
+                        setLoadingBranches(false);
+                    }
+                };
+                
+                // Fetch commits for a branch
+                const fetchCommits = async (branchName) => {
+                    setLoadingCommits(true);
+                    setError(null);
+                    
+                    try {
+                        const commitsUrl = `${repo.commits_url.replace('{/sha}', '')}?sha=${branchName}&per_page=10`;
+                        debug.log(`Fetching commits from ${commitsUrl}`);
+                        const response = await fetch(commitsUrl);
+                        
+                        if (!response.ok) {
+                            throw new Error(`GitHub API Error: ${response.status}`);
+                        }
+                        
+                        const data = await response.json();
+                        setCommits(data);
+                        setShowCommits(true);
+                    } catch (err) {
+                        debug.error("Fetch commits error", err);
+                        setError(`Failed to fetch commits: ${err.message}`);
+                    } finally {
+                        setLoadingCommits(false);
+                    }
+                };
+                
+                // Handle branch selection
+                const handleBranchClick = (branchName) => {
+                    setActiveBranch(branchName);
+                    fetchCommits(branchName);
+                };
+                
+                // Format date
+                const formatDate = (dateString) => {
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                    });
+                };
+                
+                return (
+                    <div className="repo-card">
+                        <div className="repo-header" onClick={toggleExpanded} style={{ cursor: 'pointer' }}>
+                            <div>
+                                <div className="repo-name">
+                                    <i className="fa-solid fa-book"></i>
+                                    {repo.name}
+                                    {repo.fork && (
+                                        <span className="badge badge-secondary" title="Forked repository">
+                                            <i className="fa-solid fa-code-fork"></i> Fork
+                                        </span>
+                                    )}
+                                </div>
+                                {repo.description && <div className="repo-description">{repo.description}</div>}
+                            </div>
+                            <div className="repo-stats">
+                                <div className="stat" title="Stars">
+                                    <i className="fa-solid fa-star"></i> {repo.stargazers_count}
+                                </div>
+                                <div className="stat" title="Forks">
+                                    <i className="fa-solid fa-code-fork"></i> {repo.forks_count}
+                                </div>
+                                <div className="stat" title="Last Updated">
+                                    <i className="fa-solid fa-clock"></i> {formatDate(repo.updated_at)}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {isExpanded && (
+                            <>
+                                <button 
+                                    className="accordion-button" 
+                                    onClick={() => setShowBranches(!showBranches)}
+                                >
+                                    Branches
+                                    <i className={`fa-solid fa-chevron-${showBranches ? 'up' : 'down'}`}></i>
+                                </button>
+                                
+                                {showBranches && (
+                                    <div className="branch-list">
+                                        {loadingBranches ? (
+                                            <div className="loading">
+                                                <div className="spinner"></div>
+                                            </div>
+                                        ) : (
+                                            branches.map(branch => (
+                                                <div 
+                                                    key={branch.name} 
+                                                    className="branch"
+                                                    onClick={() => handleBranchClick(branch.name)}
+                                                    style={{ cursor: 'pointer' }}
+                                                >
+                                                    <div className="branch-name">
+                                                        <i className="fa-solid fa-code-branch"></i>
+                                                        {branch.name}
+                                                        {branch.name === repo.default_branch && (
+                                                            <span className="badge badge-success">Default</span>
+                                                        )}
+                                                    </div>
+                                                    {activeBranch === branch.name && (
+                                                        <span className="badge badge-primary">Selected</span>
+                                                    )}
+                                                </div>
+                                            ))
+                                        )}
+                                        {branches.length === 0 && !loadingBranches && (
+                                            <div>No branches found</div>
+                                        )}
+                                    </div>
+                                )}
+                                
+                                <button 
+                                    className="accordion-button" 
+                                    onClick={() => setShowCommits(!showCommits)}
+                                >
+                                    Commits {activeBranch && `(${activeBranch})`}
+                                    <i className={`fa-solid fa-chevron-${showCommits ? 'up' : 'down'}`}></i>
+                                </button>
+                                
+                                {showCommits && (
+                                    <div className="commit-list">
+                                        {loadingCommits ? (
+                                            <div className="loading">
+                                                <div className="spinner"></div>
+                                            </div>
+                                        ) : (
+                                            commits.map(commit => (
+                                                <div key={commit.sha} className="commit">
+                                                    <div className="commit-id" title={commit.sha}>
+                                                        <i className="fa-solid fa-code-commit"></i>
+                                                        <a 
+                                                            href={commit.html_url} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            {commit.sha.substring(0, 7)}
+                                                        </a>
+                                                    </div>
+                                                    <div className="commit-message">{commit.commit.message}</div>
+                                                    <div className="commit-date">
+                                                        {formatDate(commit.commit.author.date)}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                        {commits.length === 0 && !loadingCommits && (
+                                            <div>No commits found</div>
+                                        )}
+                                    </div>
+                                )}
+                                
+                                {error && <div className="error-message">{error}</div>}
+                            </>
+                        )}
+                    </div>
+                );
+            }
+
+            // Wait for everything to load before rendering
+            window.addEventListener('load', function() {
+                try {
+                    debug.log("Window loaded, rendering app");
+                    ReactDOM.render(<App />, document.getElementById('root'));
+                } catch (err) {
+                    debug.error("Error during React rendering", err);
+                    document.getElementById('root').innerHTML = `
+                        <div class="container">
+                            <h1>Error Loading Application</h1>
+                            <p>There was a problem loading the GitHub Repository Explorer.</p>
+                            <div class="error-message">${err.message}</div>
+                        </div>
+                    `;
+                }
+            });
+        } catch (err) {
+            console.error("Fatal script error:", err);
+            document.getElementById('debug-content').textContent = 
+                `FATAL ERROR: ${err.message}\n${err.stack}\n`;
+            document.getElementById('debug-info').style.display = 'block';
+            document.getElementById('root').innerHTML = `
+                <div class="container">
+                    <h1>Application Error</h1>
+                    <p>There was a critical error loading the application.</p>
+                    <div class="error-message">${err.message}</div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
