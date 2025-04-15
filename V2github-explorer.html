@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Repository Explorer with Node Spider Diagram Map</title>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.20/babel.min.js"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Old Vis library version for node network -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css">
+    <style>
+      body {
+        font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-colour: #f6f8fa;
+        colour: #24292e;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .header {
+        background-colour: #24292e;
+        colour: white;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 24px;
+        display: flex;
+        align-items: center;
+      }
+      .header h1 i {
+        margin-right: 10px;
+      }
+      .search-container {
+        margin: 20px 0;
+        display: flex;
+        gap: 10px;
+      }
+      input[type="text"] {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #e1e4e8;
+        border-radius: 4px;
+        font-size: 16px;
+      }
+      button {
+        background-colour: #0366d6;
+        colour: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      button:hover {
+        background-colour: #0353b4;
+      }
+      button:disabled {
+        background-colour: #ccc;
+        cursor: not-allowed;
+      }
+      .error-message {
+        colour: #e74c3c;
+        margin: 20px 0;
+        padding: 10px;
+        background-colour: rgba(231, 76, 60, 0.1);
+        border-radius: 4px;
+      }
+      #network {
+        height: 500px;
+        border: 1px solid #ccc;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="container">
+        <h1>Loading GitHub Repository Explorer...</h1>
+        <p>If this message persists there might be an issue with JavaScript loading.</p>
+      </div>
+    </div>
+    <!-- Use an older version of the Vis library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <script type="text/babel">
+      const { useState, useEffect } = React;
+
+      function App() {
+        const [username, setUsername] = useState('');
+        const [inputUsername, setInputUsername] = useState('');
+        const [repos, setRepos] = useState([]);
+        const [loading, setLoading] = useState(false);
+        const [error, setError] = useState(null);
+
+        useEffect(() => {
+          if (repos.length > 0) {
+            drawNetwork();
+          }
+        }, [repos]);
+
+        const drawNetwork = () => {
+          const nodes = [];
+          const edges = [];
+          // Central node for the GitHub user
+          nodes.push({ id: 1, label: username });
+          repos.forEach((repo, index) => {
+            nodes.push({ id: index + 2, label: repo.name });
+            edges.push({ from: 1, to: index + 2 });
+          });
+          const container = document.getElementById('network');
+          const data = {
+            nodes: new vis.DataSet(nodes),
+            edges: new vis.DataSet(edges)
+          };
+          const options = {
+            layout: {
+              hierarchical: false
+            },
+            physics: {
+              stabilization: true
+            }
+          };
+          new vis.Network(container, data, options);
+        };
+
+        const handleSubmit = async (e) => {
+          e.preventDefault();
+          if (inputUsername.trim()) {
+            setLoading(true);
+            setError(null);
+            setRepos([]);
+            try {
+              const response = await fetch(`https://api.github.com/users/${inputUsername.trim()}/repos?per_page=100`);
+              if (!response.ok) {
+                throw new Error('GitHub API error code ' + response.status);
+              }
+              const data = await response.json();
+              data.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+              setRepos(data);
+              setUsername(inputUsername.trim());
+            } catch (err) {
+              setError('Failed to fetch repositories: ' + err.message);
+            } finally {
+              setLoading(false);
+            }
+          }
+        };
+
+        return (
+          <div>
+            <header className="header">
+              <h1><i className="fa-brands fa-github"></i> GitHub Repository Explorer</h1>
+            </header>
+            <div className="container">
+              <form onSubmit={handleSubmit} className="search-container">
+                <input
+                  type="text"
+                  value={inputUsername}
+                  onChange={(e) => setInputUsername(e.target.value)}
+                  placeholder="Enter GitHub username"
+                  aria-label="GitHub username"
+                />
+                <button type="submit" disabled={loading || !inputUsername.trim()}>
+                  {loading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-search"></i>}
+                  Search
+                </button>
+              </form>
+              {error && <div className="error-message">{error}</div>}
+              {repos.length > 0 && (
+                <>
+                  <h2>Node Spider Diagram Map</h2>
+                  <div id="network"></div>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+  </body>
+</html>
